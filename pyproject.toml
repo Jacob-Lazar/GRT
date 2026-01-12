@@ -1,5 +1,5 @@
 [project]
-name = "GRT"
+name = "FL-GRT"
 version = "0.1.0"
 description = "Lightweight Observability SDK for AI Agents"
 readme = "README.md"
