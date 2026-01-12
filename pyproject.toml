@@ -1,0 +1,33 @@
+[project]
+name = "grt"
+version = "0.1.0"
+description = "Lightweight Observability SDK for AI Agents"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+keywords = ["observability", "ai", "agents", "monitoring", "tracing"]
+authors = [
+  {name = "Jacob Lazar", email = "jacob@example.com" }
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests>=2.25.0",
+    "protobuf>=3.15.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/Jacob-Lazar/GRT"
+"Bug Tracker" = "https://github.com/Jacob-Lazar/GRT/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
