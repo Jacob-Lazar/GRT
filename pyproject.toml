@@ -1,5 +1,5 @@
 [project]
-name = "grt"
+name = "GRT"
 version = "0.1.0"
 description = "Lightweight Observability SDK for AI Agents"
 readme = "README.md"
@@ -7,7 +7,7 @@ requires-python = ">=3.8"
 license = {file = "LICENSE"}
 keywords = ["observability", "ai", "agents", "monitoring", "tracing"]
 authors = [
-  {name = "Jacob Lazar", email = "jacob@example.com" }
+  {name = "Jacob Lazar", email = "jacob.la.research@gmail.com" }
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
