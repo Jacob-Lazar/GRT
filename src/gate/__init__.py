@@ -10,7 +10,7 @@ from ._compat import (
     JSON_ENCODER, PROTOBUF_AVAILABLE, HTTP_CLIENT, json_dumps, json_loads
 )
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __all__ = [
     # Configuration
     "configure", "get_config", "ProbeConfig",
