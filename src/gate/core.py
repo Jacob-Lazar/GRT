@@ -568,63 +568,11 @@ def force_flush() -> int:
 # 3. Defers serialization to background thread.
 # =============================================================================
 
-class observe:
+class _ObserveDecorator:
     """
-    High-performance decorator for manual span instrumentation.
+    Implementation for high-performance span instrumentation.
     
-    This is the recommended way to instrument code that isn't auto-captured
-    This is the recommended way to instrument code that isn't auto-captured
-    by import hooks or library instrumentors.
-    
-    Performance Characteristics:
-        - Allocations: 0 per call (pre-allocated Ring Buffer)
-        - GC Pressure: Zero (no throwaway objects)
-        - Serialization: Deferred to background thread
-    
-    Usage:
-        # Basic usage
-        @observe("my_task")
-        def process_query(query: str):
-            return do_work(query)
-        
-        # With custom attributes (evaluated once at decoration time)
-        @observe("agent_run", kind=SpanKind.INTERNAL)
-        async def run_agent(task: str):
-            return await agent.execute(task)
-        
-        # Capture function arguments as span attributes
-        @observe("tool_call", capture_args=True)
-        def call_tool(tool_name: str, **kwargs):
-            return execute_tool(tool_name, kwargs)
-        
-        # For Google ADK / any framework
-        @observe("adk_agent")
-        def my_adk_handler(query: str):
-            return adk_agent.run(query)
-    
-    Args:
-        name: Span name. If not provided, uses function name.
-        kind: SpanKind (default: INTERNAL)
-        capture_args: If True, captures function arguments as span attributes.
-                     Arguments are truncated to 1000 chars to avoid bloat.
-        capture_result: If True, captures return value as span attribute.
-                       Result is truncated to 1000 chars.
-        attributes: Static attributes to add to every span (evaluated once).
-    
-    Thread Safety:
-        The decorator is thread-safe. Each call creates a span in the
-        thread-local context stack, ensuring proper parent-child relationships.
-    
-    Async Support:
-        Automatically detects async functions and wraps appropriately.
-        Works with both sync and async code without separate decorators.
-
-    !!! example "Decorator Usage"
-        ```python
-        @observe("process_data", capture_args=True)
-        def process_data(data: str):
-            # ...
-        ```
+    See `observe` function for usage.
     """
     
     __slots__ = (
@@ -654,18 +602,50 @@ class observe:
         self._arg_names: tuple = ()
         self._tracer: Tracer | None = None
         self._code_attrs: dict[str, Any] | None = None
+
+    def _prepare_wrapper(self, func: Callable):
+        """Pre-compute all introspection data."""
+        import inspect
+        
+        self._func_name = func.__name__
+        self._is_async = inspect.iscoroutinefunction(func)
+        
+        # Pre-compute source code location for grouping
+        try:
+            source_file = inspect.getfile(func)
+            source_lines = inspect.getsourcelines(func)
+            self._code_attrs = {
+                'code.function': func.__name__,
+                'code.filepath': source_file,
+                'code.lineno': source_lines[1] if source_lines else 0,
+                'code.namespace': func.__module__ if hasattr(func, '__module__') else '',
+            }
+        except (TypeError, OSError):
+            self._code_attrs = {
+                'code.function': func.__name__,
+            }
+        
+        # Pre-compute argument names for capture_args
+        if self._capture_args:
+            sig = inspect.signature(func)
+            self._arg_names = tuple(sig.parameters.keys())
+        
+        # Resolve span name once
+        if not self._name:
+            self._name = self._func_name
+        
+        # Get tracer once (singleton, cached)
+        self._tracer = get_tracer("gate.observe")
     
     def __call__(self, func: F) -> F:
         """
         Called when decorating a function.
         
         Pre-computes all introspection at decoration time, NOT call time.
-        This is key to outperforming Langfuse.
         """
         import functools
         import inspect
         
-        # Pre-compute at decoration time (ONCE, not per-call)
         self._func = func
         self._func_name = func.__name__
         self._is_async = inspect.iscoroutinefunction(func)
@@ -828,7 +808,48 @@ def _get_caller_info(stack_level: int = 2) -> dict[str, Any]:
 
 
 # Convenience alias for cleaner imports
-trace_span = observe
+
+
+
+def observe(
+    name: str | Callable | None = None,
+    kind: SpanKind = SpanKind.INTERNAL,
+    capture_args: bool = False,
+    capture_result: bool = False,
+    attributes: dict[str, Any] | None = None,
+) -> Callable | _ObserveDecorator:
+    """
+    High-performance decorator for manual span instrumentation.
+    
+    Supports both:
+        @observe
+        def func(): ...
+        
+        @observe("name", capture_args=True)
+        def func(): ...
+
+    See `_ObserveDecorator` for implementation details.
+    """
+    if callable(name):
+        # Case: @observe (bare)
+        # Initialize decorator with defaults and immediately wrap function
+        decorator = _ObserveDecorator(
+            name=None, 
+            kind=kind, 
+            capture_args=capture_args, 
+            capture_result=capture_result, 
+            attributes=attributes
+        )
+        return decorator(name)
+    else:
+        # Case: @observe("name")
+        return _ObserveDecorator(
+            name=name,
+            kind=kind,
+            capture_args=capture_args,
+            capture_result=capture_result,
+            attributes=attributes
+        )
 
 
 # =============================================================================
@@ -1512,3 +1533,5 @@ class BranchContext:
         if would_retry_with is not None:
             self._span.set_attribute('branch.outcome.would_retry_with', would_retry_with)
         return self
+
+trace_span = observe

@@ -1,0 +1,10 @@
+sphinx>=4.0.0
+sphinx_rtd_theme>=1.0.0
+sphinx-copybutton
+sphinxcontrib-mermaid
+
+# For autodoc to work, these are needed
+aiosqlite>=0.19.0
+pydantic>=2.0.0
+fastapi>=0.100.0
+prometheus-client
