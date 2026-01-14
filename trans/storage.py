@@ -9,33 +9,31 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 logger = logging.getLogger("trans.storage")
 
 
-@runtime_checkable
-class StorageBackend(Protocol):
-    """Protocol defining the storage interface."""
+class StorageBackend(ABC):
+    """Abstract base class defining the storage interface."""
     
+    @abstractmethod
     async def initialize(self) -> None:
         """Initialize the storage backend (create tables, etc)."""
         ...
     
+    @abstractmethod
     async def write_spans(self, spans: list[dict[str, Any]]) -> None:
         """Write a batch of spans to storage."""
         ...
     
+    @abstractmethod
     async def close(self) -> None:
         """Close storage connections."""
         ...
 
 
-class SQLiteStorage:
+class SQLiteStorage(StorageBackend):
     """SQLite-based storage for development and small deployments.
     
     Writes processed spans to a SQLite database with evaluation results.
@@ -123,7 +121,7 @@ class SQLiteStorage:
             logger.info("SQLite storage closed")
 
 
-class ClickHouseStorage:
+class ClickHouseStorage(StorageBackend):
     """ClickHouse-based storage for production scale.
     
     Writes to a ClickHouse cluster using async HTTP interface.

@@ -17,15 +17,13 @@ import json
 import logging
 import os
 import signal
+import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .evaluators import EvaluatorPipeline
 from .storage import StorageBackend, get_storage
-
-if TYPE_CHECKING:
-    pass
 
 logging.basicConfig(
     level=logging.INFO,
@@ -80,10 +78,11 @@ class TransProcessor:
         # Initialize storage
         await self.storage.initialize()
         
-        # Register signal handlers
-        loop = asyncio.get_event_loop()
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(sig, self._handle_shutdown)
+        # Register signal handlers (Unix only - Windows doesn't support add_signal_handler)
+        if sys.platform != "win32":
+            loop = asyncio.get_event_loop()
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                loop.add_signal_handler(sig, self._handle_shutdown)
         
         await self._process_loop()
     

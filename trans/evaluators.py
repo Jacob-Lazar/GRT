@@ -6,13 +6,11 @@ metrics in real-time. Results are attached to spans before storage.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 logger = logging.getLogger("trans.evaluators")
 
@@ -90,10 +88,10 @@ class GuardBreachEvaluator(Evaluator):
     async def evaluate(self, span: dict[str, Any]) -> dict[str, Any]:
         attrs_str = span.get("attributes_json", "{}")
         
-        # Parse attributes (handle our str(dict) format)
+        # Parse attributes safely using JSON
         try:
             if isinstance(attrs_str, str):
-                attrs = eval(attrs_str) if attrs_str else {}
+                attrs = json.loads(attrs_str) if attrs_str else {}
             else:
                 attrs = attrs_str
         except Exception:
@@ -136,12 +134,13 @@ class PIIDetector(Evaluator):
     async def evaluate(self, span: dict[str, Any]) -> dict[str, Any]:
         attrs_str = span.get("attributes_json", "{}")
         
+        # Parse attributes safely using JSON
         try:
             if isinstance(attrs_str, str):
-                attrs = eval(attrs_str) if attrs_str else {}
+                attrs = json.loads(attrs_str) if attrs_str else {}
             else:
                 attrs = attrs_str
-        except Exception:
+        except json.JSONDecodeError:
             attrs = {}
         
         # Fields to scan
