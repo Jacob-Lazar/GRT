@@ -9,6 +9,8 @@ Specification: https://www.w3.org/TR/baggage/
 
 from __future__ import annotations
 
+import ast
+import json
 import logging
 import re
 from typing import TYPE_CHECKING
@@ -175,7 +177,11 @@ def extract_baggage(request: Request) -> dict[str, str]:
         return filtered
     
     except Exception as e:
-        logger.warning(f"Failed to parse baggage header: {e}")
+        logger.error(
+            f"Failed to parse baggage header: {e}",
+            exc_info=True,
+            extra={"header_length": len(header_value)}
+        )
         return {}
 
 
@@ -204,12 +210,16 @@ def inject_baggage_into_spans(
         try:
             # Handle both dict and str formats
             if isinstance(attrs_str, str):
-                # Simple eval for our str(dict) format - not ideal but matches current impl
-                attrs = eval(attrs_str) if attrs_str else {}
+                # Use ast.literal_eval for safe parsing of Python dict literals
+                attrs = ast.literal_eval(attrs_str) if attrs_str else {}
             else:
                 attrs = attrs_str
-        except Exception:
-            attrs = {}
+        except (ValueError, SyntaxError):
+            # Fallback: try JSON parsing
+            try:
+                attrs = json.loads(attrs_str) if attrs_str else {}
+            except (json.JSONDecodeError, TypeError):
+                attrs = {}
         
         # Inject baggage with prefix
         for key, value in baggage.items():

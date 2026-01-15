@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import logging
+import secrets
 from typing import TYPE_CHECKING, Literal
 
 from fastapi import Request, HTTPException
@@ -72,7 +73,8 @@ def verify_token(token: str) -> bool:
     if not REFLECT_API_KEY:
         # Dev mode: no key configured, allow all
         return True
-    return token == REFLECT_API_KEY
+    # Use constant-time comparison to prevent timing attacks
+    return secrets.compare_digest(token.encode("utf-8"), REFLECT_API_KEY.encode("utf-8"))
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
