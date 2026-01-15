@@ -4,9 +4,10 @@ FL-GRT 'Reflect' Collector Service
 The central ingestion point for all agent telemetry.
 """
 import gzip
+import json
 import logging
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -16,6 +17,8 @@ from .storage import init_db, insert_spans
 from .auth import AuthMiddleware
 from .metrics import MetricsMiddleware, metrics_endpoint, record_spans_ingested, record_db_write
 from .webhook import router as webhook_router
+from .queue import get_queue, TraceQueue
+from .ratelimit import RateLimitMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -35,7 +38,9 @@ app = FastAPI(
 # --- Middleware Stack (order matters: first added = outermost) ---
 # 1. Metrics (outermost - tracks all requests)
 app.add_middleware(MetricsMiddleware)
-# 2. Auth (reject unauthenticated before processing)
+# 2. Rate Limiting (reject excessive requests early)
+app.add_middleware(RateLimitMiddleware)
+# 3. Auth (reject unauthenticated before processing)
 app.add_middleware(AuthMiddleware)
 
 
@@ -64,11 +69,31 @@ async def gzip_middleware(request: Request, call_next: Callable):
 
 # --- Startup / Shutdown ---
 
+# Global queue instance
+_queue: Optional[TraceQueue] = None
+
+
 @app.on_event("startup")
 async def startup():
+    global _queue
     logger.info("Reflect Collector starting up...")
     await init_db()
     logger.info("Database initialized.")
+    _queue = get_queue()
+    # Start Kafka queue if applicable
+    if hasattr(_queue, "start"):
+        await _queue.start()
+    logger.info(f"Queue initialized: {type(_queue).__name__}")
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Gracefully close queue connections and flush pending messages."""
+    global _queue
+    logger.info("Reflect Collector shutting down...")
+    if _queue:
+        await _queue.close()
+        logger.info("Queue closed.")
 
 
 # --- Routers ---
@@ -145,15 +170,19 @@ async def _process_trace_payload(payload: TracePayload):
                     "duration_ns": end - start,
                     "status_code": span.status.code if span.status else 0,
                     "service_name": service_name,
-                    "attributes_json": str(attrs),
-                    "events_json": str(events),
+                    "attributes_json": json.dumps(attrs),
+                    "events_json": json.dumps(events),
                     "raw_payload": "",
                 }
                 flat_spans.append(record)
     
     if flat_spans:
         start_time = time.perf_counter()
-        await insert_spans(flat_spans)
+        # Use queue for durable delivery, fallback to direct insert
+        if _queue:
+            await _queue.publish(flat_spans)
+        else:
+            await insert_spans(flat_spans)
         record_db_write(time.perf_counter() - start_time)
         record_spans_ingested(len(flat_spans), endpoint="otlp")
 

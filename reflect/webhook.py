@@ -4,9 +4,10 @@ Webhook Endpoint for Low-Code Platforms (Scenario C).
 Accepts simplified JSON payloads from n8n, Zapier, Make, etc.
 and normalizes them to the internal span format.
 """
+import json
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, BackgroundTasks
@@ -61,7 +62,7 @@ def _parse_timestamp(ts: Optional[str]) -> int:
             return int(dt.timestamp() * 1_000_000_000)
         except ValueError:
             pass
-    return int(datetime.utcnow().timestamp() * 1_000_000_000)
+    return int(datetime.now(timezone.utc).timestamp() * 1_000_000_000)
 
 
 async def _process_webhook(payload: WebhookPayload):
@@ -103,7 +104,7 @@ async def _process_webhook(payload: WebhookPayload):
         "duration_ns": duration_ns,
         "status_code": 2 if payload.error else 1,  # ERROR or OK
         "service_name": f"{payload.source}:{payload.workflow_id}",
-        "attributes_json": str(attrs),
+        "attributes_json": json.dumps(attrs),
         "events_json": "[]",
         "raw_payload": "",
     }

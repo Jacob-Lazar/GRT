@@ -6,12 +6,11 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import List, Optional
-from .models import Span
+from typing import List
 
-logger = logging.getLogger("collector.storage")
+logger = logging.getLogger("reflect.storage")
 
-DB_PATH = "traces.db"
+DB_PATH = os.getenv("REFLECT_DB_PATH", "traces.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS traces (
@@ -33,6 +32,8 @@ CREATE TABLE IF NOT EXISTS traces (
 
 CREATE INDEX IF NOT EXISTS idx_trace_id ON traces(trace_id);
 CREATE INDEX IF NOT EXISTS idx_start_time ON traces(start_time);
+CREATE INDEX IF NOT EXISTS idx_service_start ON traces(service_name, start_time);
+CREATE INDEX IF NOT EXISTS idx_status_code ON traces(status_code);
 """
 
 async def init_db():

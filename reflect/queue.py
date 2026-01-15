@@ -14,7 +14,7 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -109,7 +109,7 @@ class LocalFileQueue:
         Args:
             spans: List of span dictionaries.
         """
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         with self.path.open("a") as f:
             for span in spans:
                 record = {"_ingested_at": timestamp, **span}
