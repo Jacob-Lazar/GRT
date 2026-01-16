@@ -217,8 +217,10 @@ Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ---
 
-## Author
+## Authors
 
 **Jacob Lazar** — [jacob.la.research@gmail.com](mailto:jacob.la.research@gmail.com)
+
+**Immanuel Mary Lazar**
 
 GitHub: [github.com/Jacob-Lazar/GRT](https://github.com/Jacob-Lazar/GRT)
