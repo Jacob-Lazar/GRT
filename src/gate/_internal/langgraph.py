@@ -37,8 +37,8 @@ import contextvars
 from typing import Any, Optional, Dict, Callable, TypeVar
 from contextlib import contextmanager
 
-from .core import get_tracer, get_current_span_context, _current_span_context
-from .models import Span, SpanKind, StatusCode, SpanContext
+from ..core import get_tracer, get_current_span_context, _current_span_context
+from ..models import Span, SpanKind, StatusCode, SpanContext
 
 logger = logging.getLogger("gate.langgraph")
 
@@ -186,7 +186,7 @@ def _instrument_langgraph() -> bool:
             
             Uses start_span_no_context since generators can't use context managers.
             """
-            from .core import TracerProvider
+            from ..core import TracerProvider
             
             graph_name = getattr(self, 'name', None) or self.__class__.__name__
             span_name = f"langgraph.{graph_name}.stream"
@@ -398,7 +398,7 @@ def _inject_callback_handler(config: Any, workflow_ctx: SpanContext, tracer: Any
                 span.end()
                 
                 # Push to buffer for export
-                from .core import TracerProvider
+                from ..core import TracerProvider
                 provider = TracerProvider.get_instance()
                 if provider._buffer:
                     provider._buffer.push(span)
@@ -423,7 +423,7 @@ def _inject_callback_handler(config: Any, workflow_ctx: SpanContext, tracer: Any
                 span.record_exception(error)
                 span.end()
                 
-                from .core import TracerProvider
+                from ..core import TracerProvider
                 provider = TracerProvider.get_instance()
                 if provider._buffer:
                     provider._buffer.push(span)
